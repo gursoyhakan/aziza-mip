@@ -16,37 +16,50 @@ edges = {
 model = mp.Model()
 # Create decision variables
 x = {}
+incoming = {}
+outgoing = {}
+for node in nodes:
+    incoming[node] = model.add_var(var_type=mp.INTEGER)
+    outgoing[node] = model.add_var(var_type=mp.INTEGER)
 for edge in edges:
     x[edge] = model.add_var(var_type=mp.BINARY, name=f"x_{edge[0]}_{edge[1]}")
 # Set up the objective function
+objective = model.add_var(var_type=mp.CONTINUOUS)
 objective = mp.xsum(edges[edge] * x[edge] for edge in edges)
 model.objective = mp.minimize(objective)
+
 # Add constraints
 # Leaving node 1
 model += mp.xsum(x[edge] for edge in edges if edge[0] == 1) >= 1
-# Incoming vs. outgoing edges for each node
-for node in nodes:
-    if node != 0 and node != 20:
-        incoming = mp.xsum(x[edge] for edge in edges if edge[1] == node)
-        outgoing = mp.xsum(x[edge] for edge in edges if edge[0] == node)
-        model += incoming >= outgoing
 # Departure from node 20
 model += mp.xsum(x[edge] for edge in edges if edge[1] == 20) >= 1
+
+# Incoming vs. outgoing edges for each node
+
+for node in nodes:
+    if node != 1 and node != 20:
+        incoming[node] = mp.xsum(x[edge] for edge in edges if edge[1] == node)
+        outgoing[node] = mp.xsum(x[edge] for edge in edges if edge[0] == node)
+        model += incoming[node] >= outgoing[node]
+# number leaving 1 is greater than or equal to number came to 20
+outgoing[1] = mp.xsum(x[edge] for edge in edges if edge[0] == 1)
+incoming[20] = mp.xsum(x[edge] for edge in edges if edge[1] == 20)
+model += incoming[20] >= outgoing[1]
+
+'''
 # Flow conservation
 for node in nodes:
     if node != 0 and node != 20:
-        incoming = mp.xsum(x[edge] for edge in edges if edge[1] == node)
-        outgoing = mp.xsum(x[edge] for edge in edges if edge[0] == node)
-        model += incoming == outgoing
-# number leaving 1 is greater than or equal to number came to 20
-incoming_1 = mp.xsum(x[edge] for edge in edges if edge[1] == 1)
-outgoing_20 = mp.xsum(x[edge] for edge in edges if edge[0] == 20)
-model += incoming_1 >= outgoing_20
-
+        incoming[node] = mp.xsum(x[edge] for edge in edges if edge[1] == node)
+        outgoing[node] = mp.xsum(x[edge] for edge in edges if edge[0] == node)
+        model += incoming[node] == outgoing[node]
+'''
 # Solve the model
 model.optimize()
 # Retrieve and print results
-if model.status == 0:
+if model.status == mp.OptimizationStatus.OPTIMAL:
     for edge in edges:
-        if x[edge].sol >= 0.5:  # Check if edge is selected
+        if x[edge].x >= 0.5:  # Check if edge is selected
             print(f"Edge {edge}: Distance {edges[edge]}")
+else:
+    print(f"Model Status : {model.status}")
