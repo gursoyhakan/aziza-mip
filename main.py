@@ -14,6 +14,7 @@ edges = {
 }
 # Create the model
 model = mp.Model()
+model.solver_name = 'CBC'
 # Create decision variables
 x = {}
 incoming = {}
@@ -55,6 +56,7 @@ for node in nodes:
         model += incoming[node] == outgoing[node]
 '''
 # Solve the model
+print(f"{model.solver_name}")
 model.optimize()
 # Retrieve and print results
 if model.status == mp.OptimizationStatus.OPTIMAL:
